@@ -8,6 +8,7 @@
       :accuracy="accuracy"
       :encoder="encoder"
       :decoder="decoder"
+      :valid-days="validDays"
     />
     <div style="margin: 10px;">
       <div>
@@ -31,25 +32,20 @@
 </template>
 
 <script>
-var serialize = function (data, accuracy) {
-  return data
-}
-var parse = function (strSequence, accuracy) {
-  return strSequence
-}
-
 export default {
   data () {
     return {
       disabled: false,
       footer: true,
-      accuracy: 1,
+      accuracy: 2,
       multiple: false,
-      decoder: parse,
-      encoder: serialize,
-      selected: {
-        1: [1, 2, 3, 4]
-      }
+      decoder: this.parse,
+      encoder: this.serialize,
+      selected: '{}',
+      validDays: [
+        '2020-01-01',
+        '2020-01-02'
+      ]
     }
   },
   computed: {
@@ -63,6 +59,25 @@ export default {
     },
     value () {
       return JSON.stringify(this.selected, '', 2)
+    }
+  },
+  methods: {
+    serialize (data, accuracy) {
+      if (data === null || data === undefined) return data
+      const newData = {}
+      for (const [day, selectedSlots] of Object.entries(data)) {
+        newData[this.validDays[day - 1]] = selectedSlots
+      }
+      return JSON.stringify(newData)
+    },
+    parse  (strSequence, accuracy) {
+      const data = JSON.parse(strSequence)
+      const newData = {}
+      for (const [day, selectedSlots] of Object.entries(data)) {
+        newData[this.validDays.indexOf(day) + 1] = selectedSlots
+      }
+      return newData
+      // return strSequence
     }
   }
 }
