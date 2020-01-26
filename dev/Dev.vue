@@ -8,7 +8,7 @@
       :accuracy="accuracy"
       :encoder="encoder"
       :decoder="decoder"
-      :valid-days="validDays"
+      :event-dates="eventDays"
     />
     <div style="margin: 10px;">
       <div>
@@ -32,6 +32,9 @@
 </template>
 
 <script>
+import parseISO from 'date-fns/parseISO'
+import format from 'date-fns/format'
+import eachDayOfInterval from 'date-fns/eachDayOfInterval'
 export default {
   data () {
     return {
@@ -42,10 +45,7 @@ export default {
       decoder: this.parse,
       encoder: this.serialize,
       selected: '{}',
-      validDays: [
-        '2020-01-01',
-        '2020-01-02'
-      ]
+      eventDays: this.validDays()
     }
   },
   computed: {
@@ -54,19 +54,34 @@ export default {
         return this.accuracy
       },
       set (val) {
+        if (val < 1) {
+          return
+        }
         this.accuracy = parseInt(val, 10)
       }
     },
     value () {
       return JSON.stringify(this.selected, '', 2)
+    },
+    validDaysStrings() {
+      const formatDate = function(date) {
+        return format(date, 'yyyy-LL-dd')
+      }
+      return this.validDays().map(formatDate)
     }
   },
   methods: {
+    validDays() {
+      return eachDayOfInterval({
+        start: parseISO('2019-01-01'),
+        end: parseISO('2019-02-01')
+      })
+    },
     serialize (data, accuracy) {
       if (data === null || data === undefined) return data
       const newData = {}
       for (const [day, selectedSlots] of Object.entries(data)) {
-        newData[this.validDays[day - 1]] = selectedSlots
+        newData[this.validDaysStrings[day - 1]] = selectedSlots
       }
       return JSON.stringify(newData)
     },
@@ -74,7 +89,7 @@ export default {
       const data = JSON.parse(strSequence)
       const newData = {}
       for (const [day, selectedSlots] of Object.entries(data)) {
-        newData[this.validDays.indexOf(day) + 1] = selectedSlots
+        newData[this.validDaysStrings.indexOf(day) + 1] = selectedSlots
       }
       return newData
       // return strSequence

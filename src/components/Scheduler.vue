@@ -9,10 +9,10 @@
       <tr>
         <th rowspan="2" class="slash">
           <div class="scheduler-time-title">
-            {{ i18n('TIME_TITLE') }}
+            Hour
           </div>
           <div class="scheduler-week-title">
-            {{ i18n('WEEK_TITLE') }}
+            Day
           </div>
         </th>
       </tr>
@@ -30,8 +30,8 @@
     </thead>
     <tbody>
       <tr
-        v-for="(day, dayIdx) in validDays"
-        :key="day"
+        v-for="(day, dayIdx) in eventDates"
+        :key="dayIdx"
       >
         <td
           class="scheduler-day-toggle"
@@ -56,11 +56,11 @@
     <tfoot v-if="footer">
       <tr>
         <td :colspan="accuracy * 24 + 1">
-          <span class="scheduler-tips">{{ i18n('DRAG_TIP') }}</span>
+          <span class="scheduler-tips">Drag to select hours</span>
           <a
             class="scheduler-reset"
             @click="reset"
-          >{{ i18n('RESET') }}</a>
+          >Reset Selected</a>
         </td>
       </tr>
     </tfoot>
@@ -69,10 +69,8 @@
 
 <script>
 import SelectMode from '@/constants/SelectMode'
-import i18n from '@/utils/i18n'
 import { makeMatrix, mergeArray, rejectArray, sortCoord } from '@/utils/helper'
 import format from 'date-fns/format'
-import parseISO from 'date-fns/parseISO'
 
 export default {
 
@@ -104,7 +102,7 @@ export default {
     },
     multiple: Boolean,
     disabled: Boolean,
-    validDays: Array
+    eventDates: Array
   },
 
   data () {
@@ -123,10 +121,10 @@ export default {
       return this.accuracy * 24
     },
     validDayNames() {
-      return this.validDays.map(day => format(parseISO(day), 'iii, dd/LL/yyyy'))
+      return this.eventDates.map(day => format(day, 'iii, dd/LL/yyyy'))
     },
     validDayNum() {
-      return this.validDays.length
+      return this.eventDates.length
     }
   },
 
@@ -146,7 +144,6 @@ export default {
   },
 
   methods: {
-    i18n,
     format,
     hourSelected(value, hourIndex) {
       return ~value.indexOf(hourIndex)
