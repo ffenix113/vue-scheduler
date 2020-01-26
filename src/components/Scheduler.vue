@@ -333,7 +333,7 @@ export default {
      * 当前选中时间段为空闲 -> 全选不
      * 当前选中时间段为无空闲 - > 全不选
      *
-     * @param {Array} startCoord 起始坐标 [row, col]
+     * @param {Array} coord 起始坐标 [row, col]
      * @return {SelectMode}
      */
     getCellSelectMode (coord) {
