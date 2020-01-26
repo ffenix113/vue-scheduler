@@ -9,25 +9,11 @@
       <tr>
         <th rowspan="2" class="slash">
           <div class="scheduler-time-title">
-            {{ i18n('TIME_TITLE') }}
+            Hour
           </div>
           <div class="scheduler-week-title">
-            {{ i18n('WEEK_TITLE') }}
+            Day
           </div>
-        </th>
-        <th
-          class="scheduler-half-toggle"
-          :colspan="halfDaySpan"
-          @click="handleClickAM()"
-        >
-          {{ i18n('AM') }}
-        </th>
-        <th
-          class="scheduler-half-toggle"
-          :colspan="halfDaySpan"
-          @click="handleClickPM()"
-        >
-          {{ i18n('PM') }}
         </th>
       </tr>
       <tr>
@@ -44,14 +30,14 @@
     </thead>
     <tbody>
       <tr
-        v-for="day in 7"
-        :key="day"
+        v-for="(day, dayIdx) in eventDates"
+        :key="dayIdx"
       >
         <td
           class="scheduler-day-toggle"
-          @click="handleClickDay(day)"
+          @click="handleClickDay(dayIdx+1)"
         >
-          {{ i18n('WEEK_DAYS')[day - 1] }}
+          {{ validDayNames[dayIdx] }}
         </td>
 
         <td
@@ -59,22 +45,22 @@
           :key="hourIndex"
           class="scheduler-hour"
           :class="{
-            'scheduler-active': isCellSelected(day, hourIndex - 1)
+            'scheduler-active': isCellSelected(dayIdx+1, hourIndex - 1)
           }"
-          @mousedown="handleMouseDown(day, hourIndex - 1)"
-          @mousemove="handleMouseMove(day, hourIndex - 1)"
-          @mouseup="handleMouseUp(day, hourIndex - 1)"
+          @mousedown="handleMouseDown(dayIdx+1, hourIndex - 1)"
+          @mousemove="handleMouseMove(dayIdx+1, hourIndex - 1)"
+          @mouseup="handleMouseUp(dayIdx+1, hourIndex - 1)"
         />
       </tr>
     </tbody>
     <tfoot v-if="footer">
       <tr>
         <td :colspan="accuracy * 24 + 1">
-          <span class="scheduler-tips">{{ i18n('DRAG_TIP') }}</span>
+          <span class="scheduler-tips">Drag to select hours</span>
           <a
             class="scheduler-reset"
             @click="reset"
-          >{{ i18n('RESET') }}</a>
+          >Reset Selected</a>
         </td>
       </tr>
     </tfoot>
@@ -83,8 +69,8 @@
 
 <script>
 import SelectMode from '@/constants/SelectMode'
-import i18n from '@/utils/i18n'
 import { makeMatrix, mergeArray, rejectArray, sortCoord } from '@/utils/helper'
+import format from 'date-fns/format'
 
 export default {
 
@@ -115,7 +101,8 @@ export default {
       default: true
     },
     multiple: Boolean,
-    disabled: Boolean
+    disabled: Boolean,
+    eventDates: Array
   },
 
   data () {
@@ -130,11 +117,14 @@ export default {
   },
 
   computed: {
-    halfDaySpan () {
-      return this.accuracy * 12
-    },
     cellColAmout () {
       return this.accuracy * 24
+    },
+    validDayNames() {
+      return this.eventDates.map(day => format(day, 'iii, dd/LL/yyyy'))
+    },
+    validDayNum() {
+      return this.eventDates.length
     }
   },
 
@@ -154,38 +144,18 @@ export default {
   },
 
   methods: {
-    i18n,
+    format,
+    hourSelected(value, hourIndex) {
+      return ~value.indexOf(hourIndex)
+    },
     isCellSelected (day, hourIndex) {
       const { tempSelected = {}} = this
       const selectedHours = tempSelected[day]
-      if (selectedHours && ~selectedHours.indexOf(hourIndex)) {
+      if (selectedHours && this.hourSelected(selectedHours, hourIndex)) {
         return 'scheduler-active'
       } else {
         return ''
       }
-    },
-    handleClickAM () {
-      if (this.disabled) {
-        return
-      }
-      this.toggleHalfDay(1)
-    },
-    handleClickPM () {
-      if (this.disabled) {
-        return
-      }
-      this.toggleHalfDay(2)
-    },
-    /**
-     * @param {Number} index 1: AM, 2: PM
-     */
-    toggleHalfDay (index) {
-      const fromIndex = (index - 1) * 12 * this.accuracy
-      const toIndex = fromIndex + 12 * this.accuracy - 1
-      const startCoord = [1, fromIndex] // [row, col] row start form 1
-      const endCoord = [7, toIndex]
-      const selectMode = this.getRangeSelectMode(startCoord, endCoord)
-      this.updateToggle(startCoord, endCoord, selectMode)
     },
     /**
      * toggle hour
@@ -198,7 +168,7 @@ export default {
       const fromIndex = hour * this.accuracy
       const toIndex = fromIndex + this.accuracy - 1
       const startCoord = [1, fromIndex] // [row, col] row start form 1
-      const endCoord = [7, toIndex]
+      const endCoord = [this.validDayNum, toIndex]
       const selectMode = this.getRangeSelectMode(startCoord, endCoord)
       this.updateToggle(startCoord, endCoord, selectMode)
     },
@@ -254,14 +224,14 @@ export default {
       // 替换模式下，弃用之前的选区，直接使用当前选区
       let i
       if (selectMode === SelectMode.REPLACE) {
-        for (i = 1; i <= 7; i++) {
+        for (i = 1; i <= this.validDayNum; i++) {
           if (current[i] && current[i].length) {
             res[i] = current[i].slice(0)
           }
         }
         return res
       }
-      for (i = 1; i <= 7; i++) {
+      for (i = 1; i <= this.validDayNum; i++) {
         if (!current[i]) {
           if (origin[i] && origin[i].length) {
             res[i] = origin[i].slice(0)
@@ -333,7 +303,7 @@ export default {
      * 当前选中时间段为空闲 -> 全选不
      * 当前选中时间段为无空闲 - > 全不选
      *
-     * @param {Array} startCoord 起始坐标 [row, col]
+     * @param {Array} coord 起始坐标 [row, col]
      * @return {SelectMode}
      */
     getCellSelectMode (coord) {
@@ -342,7 +312,7 @@ export default {
       }
       // TODO 未过滤 disabled 的格子
       var day = this.selected[coord[0]]
-      return day && ~day.indexOf(coord[1]) ? SelectMode.MINUS : SelectMode.JOIN
+      return day && this.hourSelected(day, coord[1]) ? SelectMode.MINUS : SelectMode.JOIN
     },
 
     /**

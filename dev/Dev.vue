@@ -8,6 +8,7 @@
       :accuracy="accuracy"
       :encoder="encoder"
       :decoder="decoder"
+      :event-dates="eventDays"
     />
     <div style="margin: 10px;">
       <div>
@@ -31,54 +32,20 @@
 </template>
 
 <script>
-var serialize = function (data, accuracy) {
-  accuracy = accuracy > 0 ? accuracy : 1
-  var chunkSize = 24 * accuracy
-  var res = []
-  var i = 0
-  for (i = 0; i < chunkSize * 7; i++) {
-    res[i] = 0
-  }
-  for (i = 0; i < 7; i++) {
-    var row = data[i + 1]
-    if (!row) {
-      continue
-    }
-    for (var j = 0, rowLen = row.length; j < rowLen; j++) {
-      res[i * chunkSize + row[j]] = 1
-    }
-  }
-  return res.join('')
-}
-var parse = function (strSequence, accuracy) {
-  accuracy = accuracy > 0 ? accuracy : 1
-  var chunkSize = 24 * accuracy
-  var res = {}
-  for (var i = 0, row = 1, len = strSequence.length; i < len; i++) {
-    var col = i % chunkSize
-    if (strSequence[i] === '1') {
-      !res[row] && (res[row] = [])
-      res[row].push(col)
-    }
-    if ((i + 1) % chunkSize === 0) {
-      row++
-    }
-  }
-  return res
-}
-
+import parseISO from 'date-fns/parseISO'
+import format from 'date-fns/format'
+import eachDayOfInterval from 'date-fns/eachDayOfInterval'
 export default {
   data () {
     return {
       disabled: false,
       footer: true,
-      accuracy: 1,
+      accuracy: 2,
       multiple: false,
-      decoder: parse,
-      encoder: serialize,
-      selected: {
-        1: [1, 2, 3, 4]
-      }
+      decoder: this.parse,
+      encoder: this.serialize,
+      selected: '{}',
+      eventDays: this.validDays()
     }
   },
   computed: {
@@ -87,11 +54,45 @@ export default {
         return this.accuracy
       },
       set (val) {
+        if (val < 1) {
+          return
+        }
         this.accuracy = parseInt(val, 10)
       }
     },
     value () {
       return JSON.stringify(this.selected, '', 2)
+    },
+    validDaysStrings() {
+      const formatDate = function(date) {
+        return format(date, 'yyyy-LL-dd')
+      }
+      return this.validDays().map(formatDate)
+    }
+  },
+  methods: {
+    validDays() {
+      return eachDayOfInterval({
+        start: parseISO('2019-01-01'),
+        end: parseISO('2019-02-01')
+      })
+    },
+    serialize (data, accuracy) {
+      if (data === null || data === undefined) return data
+      const newData = {}
+      for (const [day, selectedSlots] of Object.entries(data)) {
+        newData[this.validDaysStrings[day - 1]] = selectedSlots
+      }
+      return JSON.stringify(newData)
+    },
+    parse  (strSequence, accuracy) {
+      const data = JSON.parse(strSequence)
+      const newData = {}
+      for (const [day, selectedSlots] of Object.entries(data)) {
+        newData[this.validDaysStrings.indexOf(day) + 1] = selectedSlots
+      }
+      return newData
+      // return strSequence
     }
   }
 }
