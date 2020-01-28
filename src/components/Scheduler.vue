@@ -18,44 +18,45 @@
       </tr>
       <tr>
         <td
-          v-for="n in 24"
-          :key="n"
-          class="scheduler-hour"
-          :colspan="accuracy"
-          @click="handleClickHour(n-1)"
-        >
-          {{ n - 1 }}
-        </td>
-      </tr>
-    </thead>
-    <tbody>
-      <tr
-        v-for="(day, dayIdx) in eventDates"
-        :key="dayIdx"
-      >
-        <td
+          v-for="(day, dayIdx) in eventDates"
+          :key="dayIdx"
           class="scheduler-day-toggle"
           @click="handleClickDay(dayIdx+1)"
         >
           {{ validDayNames[dayIdx] }}
         </td>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        v-for="hourPart in cellColAmount"
+        :key="hourPart"
+      >
+        <td
+          v-if="hourPart % accuracy === 1"
+          class="scheduler-hour"
+          :rowspan="accuracy"
+          @click="handleClickHour((hourPart-1) / accuracy)"
+        >
+          {{ (hourPart-1) / accuracy }}
+        </td>
 
         <td
-          v-for="hourIndex in cellColAmout"
-          :key="hourIndex"
+          v-for="dayIdx in eventDates.length"
+          :key="dayIdx"
           class="scheduler-hour"
           :class="{
-            'scheduler-active': isCellSelected(dayIdx+1, hourIndex - 1)
+            'scheduler-active': isCellSelected(dayIdx+1, (hourPart-1) / accuracy)
           }"
-          @mousedown="handleMouseDown(dayIdx+1, hourIndex - 1)"
-          @mousemove="handleMouseMove(dayIdx+1, hourIndex - 1)"
-          @mouseup="handleMouseUp(dayIdx+1, hourIndex - 1)"
+          @mousedown="handleMouseDown(dayIdx+1, (hourPart-1) / accuracy)"
+          @mousemove="handleMouseMove(dayIdx+1, (hourPart-1) / accuracy)"
+          @mouseup="handleMouseUp(dayIdx+1, (hourPart-1) / accuracy)"
         />
       </tr>
     </tbody>
     <tfoot v-if="footer">
       <tr>
-        <td :colspan="accuracy * 24 + 1">
+        <td :colspan="eventDates.length + 1">
           <span class="scheduler-tips">Drag to select hours</span>
           <a
             class="scheduler-reset"
