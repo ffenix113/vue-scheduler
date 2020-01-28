@@ -1,6 +1,6 @@
 .scheduler {
-  width: 100%;
-  table-layout: fixed;
+  width: fit-content;
+  table-layout: auto;
   border-collapse: collapse;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -13,7 +13,7 @@
 .scheduler th,
 .scheduler td {
   border: 1px solid black;
-  height: 25px;
+//   height: 25px;
   line-height: 25px;
 }
 
@@ -26,7 +26,7 @@
 
 .scheduler .scheduler-hour-toggle,
 .scheduler .scheduler-hour {
-  width: 15px;
+//   width: 15px;
 }
 
 .scheduler-time-title,

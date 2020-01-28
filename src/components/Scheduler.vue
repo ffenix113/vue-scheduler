@@ -38,7 +38,7 @@
           :rowspan="accuracy"
           @click="handleClickHour((hourPart-1) / accuracy)"
         >
-          {{ (hourPart-1) / accuracy }}
+          {{ (hourPart-1) / accuracy }}:00
         </td>
 
         <td
@@ -46,11 +46,11 @@
           :key="dayIdx"
           class="scheduler-hour"
           :class="{
-            'scheduler-active': isCellSelected(dayIdx+1, (hourPart-1) / accuracy)
+            'scheduler-active': allHourSelected(dayIdx, hourPart-1)
           }"
-          @mousedown="handleMouseDown(dayIdx+1, (hourPart-1) / accuracy)"
-          @mousemove="handleMouseMove(dayIdx+1, (hourPart-1) / accuracy)"
-          @mouseup="handleMouseUp(dayIdx+1, (hourPart-1) / accuracy)"
+          @mousedown="handleMouseDown(dayIdx, hourPart-1)"
+          @mousemove="handleMouseMove(dayIdx, hourPart-1)"
+          @mouseup="handleMouseUp(dayIdx, hourPart-1)"
         />
       </tr>
     </tbody>
@@ -74,11 +74,10 @@ import { makeMatrix, mergeArray, rejectArray, sortCoord } from '@/utils/helper'
 import format from 'date-fns/format'
 
 export default {
-
   name: 'Scheduler',
 
   props: {
-    value: [Object, Number, String],
+    value: [Array, Object, Number, String],
     /**
      * 将用户自定义的值解码为 VueScheduler 的标准值。
      * @param {Object} selected 已选值
@@ -94,7 +93,7 @@ export default {
     // how many cells of an hour
     accuracy: {
       type: Number,
-      default: 1
+      default: 2
     },
     // footer exist?
     footer: {
@@ -103,7 +102,8 @@ export default {
     },
     multiple: Boolean,
     disabled: Boolean,
-    eventDates: Array
+    eventDates: Array,
+    userId: String
   },
 
   data () {
@@ -111,18 +111,29 @@ export default {
       selectMode: SelectMode.NONE,
       startCoord: null,
       endCoord: null,
-      selected: {},
-      tempSelected: null,
-      moving: false
+      allSelected: {},
+      // userSelected holds time object for current user
+      userSelected: {},
+      // userSelectedIdx hold index in event for current user
+      userSelectedIdx: {},
+      moving: false,
+      selectedCache: {},
+      isSelectedCached: false,
+      // haveUserSelected tells if user have actually selected
+      // at least one cell
+      haveUserSelected: false
     }
   },
 
   computed: {
-    cellColAmout () {
+    cellColAmount () {
       return this.accuracy * 24
     },
     validDayNames() {
       return this.eventDates.map(day => format(day, 'iii, dd/LL/yyyy'))
+    },
+    validDayNamesISO() {
+      return this.eventDates.map(day => format(day, 'yyyy-LL-dd'))
     },
     validDayNum() {
       return this.eventDates.length
@@ -137,8 +148,17 @@ export default {
         } else if (this.$SCHEDULER.decoder) {
           val = this.$SCHEDULER.decoder(val, this.accuracy)
         }
-        this.selected = val
-        this.tempSelected = val
+        const self = this
+        let currUserValueIdx = val.findIndex(config => config.user_id === self.userId)
+        if (currUserValueIdx === -1) {
+          const currUserValue = { user_id: self.userId, times: {}}
+          val.push(currUserValue)
+          currUserValueIdx = val.length - 1
+        }
+        this.userSelected = val[currUserValueIdx].times
+        this.haveUserSelected = Object.keys(this.userSelected).length !== 0
+        this.userSelectedIdx = currUserValueIdx
+        this.allSelected = val
       },
       immediate: true
     }
@@ -146,17 +166,57 @@ export default {
 
   methods: {
     format,
+    isoDay(day) {
+      return this.validDayNamesISO[day - 1]
+    },
+    opacity(day, hourIndex) {
+
+    },
+    allHourSelected(day, hourIndex) {
+      if (!this.isSelectedCached) {
+        for (const val of this.allSelected) {
+          this.validDayNamesISO.forEach((isoDay, idx) => {
+            if (val.user_id === this.userId || !val.times.hasOwnProperty(isoDay)) {
+              return
+            }
+            const selectedHours = val.times[isoDay]
+            selectedHours.forEach(hourPart => {
+              if (this.selectedCache.hasOwnProperty((idx + 1) + '_' + (hourPart - 1))) {
+                this.selectedCache[(idx + 1) + '_' + (hourPart - 1)] = 0
+              }
+              this.selectedCache[(idx + 1) + '_' + (hourPart - 1)] += 1
+            })
+          })
+        }
+        this.isSelectedCached = true
+      }
+      if (this.selectedCache[day + '_' + hourIndex] !== undefined) {
+        return true
+      }
+
+      const isoDay = this.isoDay(day)
+      const userSelectedTimes = this.userSelected[isoDay]
+      const userSelected = userSelectedTimes && this.hourSelected(userSelectedTimes, hourIndex)
+      return userSelected
+    },
     hourSelected(value, hourIndex) {
       return ~value.indexOf(hourIndex)
     },
     isCellSelected (day, hourIndex) {
-      const { tempSelected = {}} = this
-      const selectedHours = tempSelected[day]
-      if (selectedHours && this.hourSelected(selectedHours, hourIndex)) {
-        return 'scheduler-active'
-      } else {
-        return ''
+      const isoDay = this.isoDay(day - 1)
+      for (const val of this.allSelected) {
+        if (val.user_id === this.userId) {
+          continue
+        }
+        const selectedHours = val.times[isoDay]
+        if (selectedHours && this.hourSelected(selectedHours, hourIndex)) {
+          return true
+        }
       }
+      const userSelectedTimes = this.userSelected[isoDay]
+      const userSelected = userSelectedTimes && this.hourSelected(userSelectedTimes)
+      console.log(day, hourIndex, userSelected)
+      return userSelected
     },
     /**
      * toggle hour
@@ -176,7 +236,7 @@ export default {
     handleClickDay (day) {
       if (this.disabled) { return }
       const startCoord = [day, 0] // [row, col] row start form 1
-      const endCoord = [day, 24 * this.accuracy - 1]
+      const endCoord = [day, this.cellColAmount - 1]
       const selectMode = this.getRangeSelectMode(startCoord, endCoord)
       this.updateToggle(startCoord, endCoord, selectMode)
     },
@@ -226,26 +286,28 @@ export default {
       let i
       if (selectMode === SelectMode.REPLACE) {
         for (i = 1; i <= this.validDayNum; i++) {
-          if (current[i] && current[i].length) {
-            res[i] = current[i].slice(0)
+          const isoDay = this.isoDay(i)
+          if (current[isoDay] && current[isoDay].length) {
+            res[isoDay] = current[isoDay].slice(0)
           }
         }
         return res
       }
       for (i = 1; i <= this.validDayNum; i++) {
-        if (!current[i]) {
-          if (origin[i] && origin[i].length) {
-            res[i] = origin[i].slice(0)
+        const isoDay = this.isoDay(i)
+        if (!current[isoDay]) {
+          if (origin[isoDay] && origin[isoDay].length) {
+            res[isoDay] = origin[isoDay].slice(0)
           }
           continue
         }
-        if (origin[i] && origin[i].length) {
-          var m = selectMode === SelectMode.JOIN
-            ? mergeArray(origin[i], current[i])
-            : rejectArray(origin[i], current[i])
-          m.length && (res[i] = m)
+        if (origin[isoDay] && origin[isoDay].length) {
+          const m = selectMode === SelectMode.JOIN
+            ? mergeArray(origin[isoDay], current[isoDay])
+            : rejectArray(origin[isoDay], current[isoDay])
+          m.length && (res[isoDay] = m)
         } else if (selectMode === SelectMode.JOIN) {
-          res[i] = current[i].slice(0)
+          res[isoDay] = current[isoDay].slice(0)
         }
       }
       return res
@@ -283,7 +345,7 @@ export default {
       var used = 0
       for (var i = 0; i < rows; i++) {
         var day = startRow + i
-        var data = this.selected[day]
+        var data = this.allSelected[day]
         if (!data) {
           continue
         }
@@ -312,7 +374,7 @@ export default {
         return SelectMode.REPLACE
       }
       // TODO 未过滤 disabled 的格子
-      var day = this.selected[coord[0]]
+      const day = this.userSelected[this.isoDay(coord[0])]
       return day && this.hourSelected(day, coord[1]) ? SelectMode.MINUS : SelectMode.JOIN
     },
 
@@ -334,8 +396,8 @@ export default {
    * @param {SelectMode} selectMode 选择模式
    */
     updateRange (startCoord, endCoord, selectMode) {
-      var currentSelectRange = makeMatrix(startCoord, endCoord)
-      this.tempSelected = this.merge(this.selected, currentSelectRange, selectMode)
+      var currentSelectRange = makeMatrix(this.isoDay, startCoord, endCoord)
+      this.userSelected = this.merge(this.userSelected, currentSelectRange, selectMode)
     },
 
     // 并更新选中数据
@@ -344,17 +406,18 @@ export default {
       this.startCoord = null
       this.endCoord = null
       this.selectMode = SelectMode.NONE
-      this.emitChange(this.tempSelected)
+      this.emitChange(this.allSelected)
     },
 
     reset () {
       if (this.disabled) {
         return
       }
-      this.emitChange({})
+      this.emitChange([])
     },
 
     emitChange (val) {
+      val[this.userSelectedIdx].times = this.userSelected
       if (this.encoder) {
         val = this.encoder(val, this.accuracy)
       } else if (this.$SCHEDULER.encoder) {
