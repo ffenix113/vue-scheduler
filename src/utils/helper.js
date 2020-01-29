@@ -19,13 +19,13 @@ export function makeRange (from, to) {
   return res
 }
 
-export function makeMatrix (startCoord, endCoord) {
+export function makeMatrix (isoDaysFunc, startCoord, endCoord) {
   var matrix = {}
   var colArr = makeRange(startCoord[1], endCoord[1])
   var fromRow = startCoord[0] < endCoord[0] ? startCoord[0] : endCoord[0]
   var steps = Math.abs(startCoord[0] - endCoord[0]) + 1
   for (var i = 0; i < steps; i++) {
-    matrix[fromRow + i] = colArr.slice(0)
+    matrix[isoDaysFunc(fromRow + i)] = colArr.slice(0)
   }
   return matrix
 }
