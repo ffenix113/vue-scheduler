@@ -9,10 +9,10 @@
       <tr>
         <th rowspan="2" class="slash">
           <div class="scheduler-time-title">
-            Hour
+            Day
           </div>
           <div class="scheduler-week-title">
-            Day
+            Hour
           </div>
         </th>
       </tr>
@@ -47,6 +47,9 @@
           class="scheduler-hour"
           :class="{
             'scheduler-active': allHourSelected(dayIdx, hourPart-1)
+          }"
+          :style="{
+            'opacity': opacity(dayIdx, hourPart-1) + '%'
           }"
           @mousedown="handleMouseDown(dayIdx, hourPart-1)"
           @mousemove="handleMouseMove(dayIdx, hourPart-1)"
@@ -137,6 +140,9 @@ export default {
     },
     validDayNum() {
       return this.eventDates.length
+    },
+    opacityShift() {
+      return this.haveUserSelected ? 0 : 1
     }
   },
 
@@ -170,7 +176,14 @@ export default {
       return this.validDayNamesISO[day - 1]
     },
     opacity(day, hourIndex) {
-
+      let currSelected = 0
+      const _selected = this.selectedCache[day + '_' + hourIndex]
+      if (_selected !== undefined) {
+        currSelected = _selected
+      }
+      const userSelectedTimes = this.userSelected[this.isoDay(day)]
+      currSelected += (userSelectedTimes && this.hourSelected(userSelectedTimes, hourIndex)) ? 1 : 0
+      return (currSelected / (this.allSelected.length - this.opacityShift)) * 100
     },
     allHourSelected(day, hourIndex) {
       if (!this.isSelectedCached) {
@@ -180,11 +193,12 @@ export default {
               return
             }
             const selectedHours = val.times[isoDay]
+            const self = this
             selectedHours.forEach(hourPart => {
-              if (this.selectedCache.hasOwnProperty((idx + 1) + '_' + (hourPart - 1))) {
-                this.selectedCache[(idx + 1) + '_' + (hourPart - 1)] = 0
+              if (!self.selectedCache.hasOwnProperty((idx + 1) + '_' + (hourPart - 1))) {
+                self.selectedCache[(idx + 1) + '_' + (hourPart - 1)] = 0
               }
-              this.selectedCache[(idx + 1) + '_' + (hourPart - 1)] += 1
+              self.selectedCache[(idx + 1) + '_' + (hourPart - 1)] += 1
             })
           })
         }
@@ -196,8 +210,7 @@ export default {
 
       const isoDay = this.isoDay(day)
       const userSelectedTimes = this.userSelected[isoDay]
-      const userSelected = userSelectedTimes && this.hourSelected(userSelectedTimes, hourIndex)
-      return userSelected
+      return userSelectedTimes && this.hourSelected(userSelectedTimes, hourIndex)
     },
     hourSelected(value, hourIndex) {
       return ~value.indexOf(hourIndex)
@@ -398,6 +411,7 @@ export default {
     updateRange (startCoord, endCoord, selectMode) {
       var currentSelectRange = makeMatrix(this.isoDay, startCoord, endCoord)
       this.userSelected = this.merge(this.userSelected, currentSelectRange, selectMode)
+      this.haveUserSelected = Object.keys(this.userSelected).length !== 0
     },
 
     // 并更新选中数据
@@ -413,7 +427,9 @@ export default {
       if (this.disabled) {
         return
       }
-      this.emitChange([])
+      this.haveUserSelected = false
+      this.userSelected = {}
+      this.emitChange(this.allSelected)
     },
 
     emitChange (val) {

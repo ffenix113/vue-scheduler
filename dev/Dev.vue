@@ -9,6 +9,7 @@
       :encoder="encoder"
       :decoder="decoder"
       :event-dates="eventDays"
+      :user-id="this.userId"
     />
     <div style="margin: 10px;">
       <div>
@@ -44,7 +45,21 @@ export default {
       multiple: false,
       decoder: this.parse,
       encoder: this.serialize,
-      selected: '{}',
+      selected: [
+        {
+          user_id: '211',
+          times: { '2019-01-01': [1, 2, 3] }
+        },
+        {
+          user_id: '212',
+          times: { '2019-01-01': [2, 3, 4, 5] }
+        },
+        {
+          user_id: '222',
+          times: { '2019-01-02': [2, 3, 4, 5] }
+        }
+      ],
+      userId: '222',
       eventDays: this.validDays()
     }
   },
@@ -74,26 +89,33 @@ export default {
     validDays() {
       return eachDayOfInterval({
         start: parseISO('2019-01-01'),
-        end: parseISO('2019-02-01')
+        end: parseISO('2019-01-04')
       })
     },
-    serialize (data, accuracy) {
-      if (data === null || data === undefined) return data
-      const newData = {}
-      for (const [day, selectedSlots] of Object.entries(data)) {
-        newData[this.validDaysStrings[day - 1]] = selectedSlots
-      }
-      return JSON.stringify(newData)
+    serialize(data, accuracy) {
+      this.selected = data
+      return data
     },
-    parse  (strSequence, accuracy) {
-      const data = JSON.parse(strSequence)
-      const newData = {}
-      for (const [day, selectedSlots] of Object.entries(data)) {
-        newData[this.validDaysStrings.indexOf(day) + 1] = selectedSlots
-      }
-      return newData
-      // return strSequence
+    parse(strSequence, accuracy) {
+      return strSequence
     }
+    // serialize (data, accuracy) {
+    //   if (data === null || data === undefined) return data
+    //   const newData = {}
+    //   for (const [day, selectedSlots] of Object.entries(data)) {
+    //     newData[this.validDaysStrings[day - 1]] = selectedSlots
+    //   }
+    //   return JSON.stringify(newData)
+    // },
+    // parse  (strSequence, accuracy) {
+    //   const data = JSON.parse(strSequence)
+    //   const newData = {}
+    //   for (const [day, selectedSlots] of Object.entries(data)) {
+    //     newData[this.validDaysStrings.indexOf(day) + 1] = selectedSlots
+    //   }
+    //   return newData
+    //   // return strSequence
+    // }
   }
 }
 </script>
