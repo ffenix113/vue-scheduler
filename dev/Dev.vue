@@ -8,7 +8,8 @@
       :accuracy="accuracy"
       :encoder="encoder"
       :decoder="decoder"
-      :event-dates="eventDays"
+      :starts-at="startsAt"
+      :ends-at="endsAt"
       :user-id="this.userId"
     />
     <div style="margin: 10px;">
@@ -60,7 +61,8 @@ export default {
         }
       ],
       userId: '222',
-      eventDays: this.validDays()
+      startsAt: parseISO('2019-01-01'),
+      endsAt: parseISO('2019-01-04')
     }
   },
   computed: {

@@ -1,3 +1,4 @@
+import eachDayOfInterval from "date-fns/eachDayOfInterval";import parseISO from "date-fns/parseISO";
 <template>
   <table
     class="scheduler"
@@ -75,6 +76,7 @@
 import SelectMode from '@/constants/SelectMode'
 import { makeMatrix, mergeArray, rejectArray, sortCoord } from '@/utils/helper'
 import format from 'date-fns/format'
+import eachDayOfInterval from 'date-fns/eachDayOfInterval'
 
 export default {
   name: 'Scheduler',
@@ -105,7 +107,8 @@ export default {
     },
     multiple: Boolean,
     disabled: Boolean,
-    eventDates: Array,
+    startsAt: Date,
+    endsAt: Date,
     userId: String
   },
 
@@ -131,6 +134,12 @@ export default {
   computed: {
     cellColAmount () {
       return this.accuracy * 24
+    },
+    eventDates() {
+      return eachDayOfInterval({
+        start: this.startsAt,
+        end: this.endsAt
+      })
     },
     validDayNames() {
       return this.eventDates.map(day => format(day, 'iii, dd/LL/yyyy'))
